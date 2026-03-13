@@ -10,6 +10,18 @@ st.set_page_config(page_title="SecRadar AI", page_icon="📊", layout="centered"
 st.title("📊 SecRadar: SEC AI Analyst")
 st.markdown("A Dual-Engine RAG combining **Athena SQL** for quantitative math and **Bedrock** for qualitative narrative risks.")
 
+with st.sidebar:
+    st.header("About SecRadar")
+    st.markdown("""
+    This application is an enterprise-grade, serverless AI agent designed for financial analysts. 
+    It autonomously routes queries to an **Athena SQL Data Lake** for quantitative math, and an **Amazon Bedrock Knowledge Base** for qualitative SEC narratives.
+    """)
+    st.markdown("---")
+
+    # Choose your favorite footer style here:
+    st.markdown("© Built by Chenglian. Powered by AWS Serverless & Amazon Bedrock.")
+    st.markdown("[Connect on LinkedIn](https://linkedin.com/in/chenglainhe)")
+
 # --- SECRETS & INITIALIZATION ---
 try:
     # 1. Try fetching from Streamlit Cloud Secrets
