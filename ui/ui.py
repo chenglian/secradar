@@ -37,19 +37,6 @@ try:
         region_name='us-east-1'
     )
 
-    # --- DEBUG IDENTITY BLOCK ---
-    try:
-        sts_client = boto3.client(
-            'sts',
-            aws_access_key_id=st.secrets["AWS_ACCESS_KEY_ID"],
-            aws_secret_access_key=st.secrets["AWS_SECRET_ACCESS_KEY"],
-            region_name='us-east-1'
-        )
-        identity = sts_client.get_caller_identity()
-        st.info(f"🔍 DEBUG - Currently authenticated as: {identity['Arn']}")
-    except Exception as e:
-        st.error(f"🔍 DEBUG - STS Authentication Failed: {str(e)}")
-
 except (FileNotFoundError, KeyError):
     # 2. Fallback for Local Testing
     AGENT_ARN = os.environ.get("AGENT_ARN")
