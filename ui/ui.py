@@ -13,8 +13,9 @@ st.markdown("A Dual-Engine RAG combining **Athena SQL** for quantitative math an
 with st.sidebar:
     st.header("About SecRadar")
     st.markdown("""
-    This application is an enterprise-grade, serverless AI agent designed for financial analysts. 
+    This application backend is a serverless AI agent designed for financial analysts. 
     It autonomously routes queries to an **Athena SQL Data Lake** for quantitative math, and an **Amazon Bedrock Knowledge Base** for qualitative SEC narratives.
+    Currently it's limited to Nasdaq 100 tickers and their most recent SEC filings.
     """)
     st.markdown("---")
 
@@ -131,5 +132,25 @@ if prompt := st.chat_input("E.g., What was Tesla's revenue in 2025, and based on
                 st.markdown(final_answer)
                 st.session_state.messages.append({"role": "assistant", "content": final_answer})
 
+
             except Exception as e:
-                st.error(f"Error invoking AWS AgentCore: {str(e)}")
+                error_string = str(e)
+
+                # 1. Catch IAM / Access Denied Errors securely
+                if "AccessDenied" in error_string or "403" in error_string:
+                    st.error(
+                        "🔒 **Access Denied:** The AI agent is currently unavailable due to security restrictions. If you are the administrator, please check the IAM policy permissions.")
+
+                # 2. Catch Throttling / Rate Limit Errors
+                elif "ThrottlingException" in error_string or "429" in error_string:
+                    st.error(
+                        "🚦 **Traffic Heavy:** The SEC agent is currently experiencing high traffic. Please try again in a few moments.")
+
+                # 3. Generic fallback for everything else (without leaking the raw string)
+
+                else:
+                    st.error(
+                        "⚠️ **System Error:** An unexpected error occurred while analyzing the SEC filings. Please try again later.")
+
+                # Still print the raw error to your internal server logs for debugging!
+                print(f"Backend AWS Error: {error_string}")
