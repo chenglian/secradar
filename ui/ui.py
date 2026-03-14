@@ -20,10 +20,6 @@ with st.sidebar:
     """)
     st.markdown("---")
 
-    # Choose your favorite footer style here:
-    st.markdown("© Built by Chenglian. Powered by AWS Serverless & Amazon Bedrock.")
-    st.markdown("[Connect on LinkedIn](https://linkedin.com/in/chenglainhe)")
-
 # --- SECRETS & INITIALIZATION ---
 try:
     # 1. Try fetching from Streamlit Cloud Secrets
