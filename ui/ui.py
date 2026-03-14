@@ -36,6 +36,20 @@ try:
         aws_secret_access_key=st.secrets["AWS_SECRET_ACCESS_KEY"],
         region_name='us-east-1'
     )
+
+    # --- DEBUG IDENTITY BLOCK ---
+    try:
+        sts_client = boto3.client(
+            'sts',
+            aws_access_key_id=st.secrets["AWS_ACCESS_KEY_ID"],
+            aws_secret_access_key=st.secrets["AWS_SECRET_ACCESS_KEY"],
+            region_name='us-east-1'
+        )
+        identity = sts_client.get_caller_identity()
+        st.info(f"🔍 DEBUG - Currently authenticated as: {identity['Arn']}")
+    except Exception as e:
+        st.error(f"🔍 DEBUG - STS Authentication Failed: {str(e)}")
+
 except (FileNotFoundError, KeyError):
     # 2. Fallback for Local Testing
     AGENT_ARN = os.environ.get("AGENT_ARN")
@@ -154,4 +168,4 @@ if prompt := st.chat_input("E.g., What was Tesla's revenue in 2025, and based on
                         "⚠️ **System Error:** An unexpected error occurred while analyzing the SEC filings. Please try again later.")
 
                 # Still print the raw error to your internal server logs for debugging!
-                print(f"Backend AWS Error: {error_string}")
+                print(f"Backend AWS Error: {error_string}", flush=True)
