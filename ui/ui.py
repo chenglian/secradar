@@ -15,7 +15,8 @@ with st.sidebar:
     st.markdown("""
     This application backend is a serverless AI agent designed for financial analysts. 
     It autonomously routes queries to an **Athena SQL Data Lake** for quantitative math, and an **Amazon Bedrock Knowledge Base** for qualitative SEC narratives.
-    Currently it's limited to Nasdaq 100 tickers and their most recent SEC filings.
+    
+    Currently it's limited to **Nasdaq 100** tickers and their most recent SEC filings.
     """)
     st.markdown("---")
 
