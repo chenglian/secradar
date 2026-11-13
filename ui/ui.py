@@ -5,6 +5,7 @@ import hmac
 import json
 import os
 import re
+import urllib.request
 import uuid
 import time
 
@@ -12,6 +13,8 @@ import time
 S3_BUCKET_NAME = os.environ.get("S3_BUCKET_NAME", "che-sec-filings")
 TARGET_TICKERS_KEY = "reference-data/target-tickers.json"
 CIK_MAPPING_KEY = "reference-data/company_tickers.json"
+SEC_TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
+SEC_HEADERS = {"User-Agent": "RiskRadar-AlphaEngine/2.0 (chenglian@agiera.work)"}
 DEFAULT_LAMBDA_NAME = os.environ.get("INGESTION_LAMBDA_NAME", "secfiling-downloader")
 DEFAULT_ADMIN_PASSWORD_HASH = "438156b54c653c730ad62964c10db3942ea161d9a3249f12aec3c50cbc92315a"
 
@@ -93,7 +96,30 @@ def load_valid_sec_tickers(bucket: str) -> dict[str, str]:
         resp = s3_client.get_object(Bucket=bucket, Key=CIK_MAPPING_KEY)
         data = json.loads(resp["Body"].read().decode("utf-8"))
         return {
-            str(entry["ticker"]).upper(): entry.get("title", "")
+            str(entry["ticker"]).strip().upper(): entry.get("title", "")
+            for entry in data.values()
+            if "ticker" in entry
+        }
+    except Exception:
+        return {}
+
+
+def refresh_sec_tickers_from_sec_gov(bucket: str) -> dict[str, str]:
+    """Downloads the latest company_tickers.json from SEC.gov, updates the S3 cache, and returns the mapping."""
+    try:
+        req = urllib.request.Request(SEC_TICKERS_URL, headers=SEC_HEADERS)
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            raw_bytes = resp.read()
+        data = json.loads(raw_bytes.decode("utf-8"))
+        s3_client.put_object(
+            Bucket=bucket,
+            Key=CIK_MAPPING_KEY,
+            Body=raw_bytes,
+            ContentType="application/json",
+        )
+        load_valid_sec_tickers.clear()
+        return {
+            str(entry["ticker"]).strip().upper(): entry.get("title", "")
             for entry in data.values()
             if "ticker" in entry
         }
@@ -210,6 +236,11 @@ with st.sidebar:
                         value=False,
                         help=f"Invokes Lambda `{INGESTION_LAMBDA_NAME}` for the new tickers right after saving.",
                     )
+                    bypass_sec_check = st.checkbox(
+                        "Bypass SEC ticker directory check (for brand-new/pending IPOs)",
+                        value=False,
+                        help="Check this if an IPO happened today and SEC's company_tickers.json hasn't indexed its symbol yet.",
+                    )
                     if st.button("Add to S3", type="primary", use_container_width=True):
                         parsed_new = [
                             t.strip().upper()
@@ -219,13 +250,27 @@ with st.sidebar:
                         if not parsed_new:
                             st.warning("Please enter at least one ticker symbol.")
                         else:
-                            sec_map = load_valid_sec_tickers(BUCKET_NAME)
-                            invalid = [t for t in parsed_new if sec_map and t not in sec_map]
+                            if bypass_sec_check:
+                                invalid = []
+                            else:
+                                sec_map = load_valid_sec_tickers(BUCKET_NAME)
+                                invalid = [t for t in parsed_new if sec_map and t not in sec_map]
+                                # Auto-refresh from SEC.gov on cache miss for newly IPO'd companies
+                                if invalid:
+                                    with st.spinner("Refreshing official SEC ticker directory from sec.gov..."):
+                                        refreshed_map = refresh_sec_tickers_from_sec_gov(BUCKET_NAME)
+                                        if refreshed_map:
+                                            sec_map = refreshed_map
+                                            invalid = [t for t in parsed_new if t not in sec_map]
+
                             already_present = [t for t in parsed_new if t in current_tickers]
                             to_add = [t for t in parsed_new if t not in current_tickers and t not in invalid]
 
                             if invalid:
-                                st.error(f"Unrecognized SEC ticker(s): {', '.join(invalid)}")
+                                st.error(
+                                    f"Unrecognized SEC ticker(s) even after refreshing from sec.gov: {', '.join(invalid)}. "
+                                    "Check the official symbol or enable 'Bypass SEC ticker directory check' above."
+                                )
                             if already_present:
                                 st.info(f"Already in target list: {', '.join(already_present)}")
                             if to_add:
