@@ -243,7 +243,7 @@ with st.sidebar:
                     )
                     if st.button("Add to S3", type="primary", use_container_width=True):
                         parsed_new = [
-                            t.strip().upper()
+                            t.strip().upper().replace(".", "-")
                             for t in re.split(r"[,\s]+", raw_new)
                             if t.strip()
                         ]
